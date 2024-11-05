@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student CRUD with REST API</title>
+    <style>
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>학생 데이터 관리</h1>
+    
+    <!-- 학생 데이터 가져오기 및 추가 -->
+    <button id="btnStu">학생 데이터 가져오기</button>
+    <button id="btnOpenAddModal">학생 데이터 추가</button>
+    
+    <div id="contents"></div>
+    
+    <!-- Add Student Modal -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('addModal')">&times;</span>
+            <h2>학생 데이터 추가</h2>
+            <input type="text" id="addName" placeholder="name">
+            <input type="number" id="addAge" placeholder="age">
+            <button id="btnAdd">추가</button>
+        </div>
+    </div>
+
+    <!-- Edit Student Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('editModal')">&times;</span>
+            <h2>학생 데이터 수정</h2>
+            <input type="text" id="editName" placeholder="new name">
+            <input type="number" id="editAge" placeholder="new age">
+            <button id="btnUpdate">수정</button>
+        </div>
+    </div>
+
+    <script>
+        // 페이지가 로드될 때 이벤트 리스너를 추가
+        window.onload = function () {
+            let btnStu = document.getElementById("btnStu");
+            let btnOpenAddModal = document.getElementById("btnOpenAddModal");
+            
+            btnStu.addEventListener("click", getStudents);
+            btnOpenAddModal.addEventListener("click", function() {
+                openModal('addModal');
+            });
+            document.getElementById("btnAdd").addEventListener("click", postData);
+        }
+
+        let editStudentId = null; // To store the student ID being edited
+
+        // 모달 열기 및 닫기 함수
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = "block";
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = "none";
+        }
+
+        // 학생 목록을 가져오는 함수 (GET)
+        function getStudents() {
+            let contents = document.getElementById("contents");
+            const xhr = new XMLHttpRequest();
+
+            xhr.open("GET", "http://localhost:3001/students");
+            xhr.setRequestHeader("Content-Type", "application/json");
+            xhr.send();
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    const res = JSON.parse(xhr.response);
+                    contents.innerHTML = makeList(res);
+                } else {
+                    console.log(xhr.status, xhr.statusText);
+                }
+            }
+        }
+
+        // 새로운 학생 데이터를 추가하는 함수 (POST)
+        function postData() {
+            const name = document.getElementById("addName").value;
+            const age = document.getElementById("addAge").value;
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "http://localhost:3001/students");
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            const data = JSON.stringify({ name: name, age: parseInt(age) });
+            xhr.send(data);
+
+            xhr.onload = () => {
+                if (xhr.status === 201) {
+                    document.getElementById("addName").value = "";
+                    document.getElementById("addAge").value = "";
+                    closeModal('addModal'); // Close the add modal
+                    getStudents(); // Refresh the list
+                } else {
+                    console.log(xhr.status, xhr.statusText);
+                }
+            }
+        }
+
+        // 학생 데이터를 삭제하는 함수 (DELETE)
+        function deleteData(id) {
+            const xhr = new XMLHttpRequest();
+            xhr.open("DELETE", `http://localhost:3001/students/${id}`);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            xhr.send();
+
+            xhr.onload = () => {
+                if (xhr.status === 200 || xhr.status === 204) {
+                    getStudents(); // Refresh the list after deletion
+                } else {
+                    console.log(xhr.status, xhr.statusText);
+                }
+            }
+        }
+
+        // 학생 데이터를 수정하는 함수 (PUT)
+        function updateData(id) {
+            editStudentId = id; // Store the id to update
+            openModal('editModal'); // Open the edit modal
+        }
+
+        // Modal에서 입력받은 데이터로 학생 데이터를 수정하는 함수
+        document.getElementById("btnUpdate").addEventListener("click", function() {
+            const newName = document.getElementById("editName").value;
+            const newAge = document.getElementById("editAge").value;
+            
+            const xhr = new XMLHttpRequest();
+            xhr.open("PUT", `http://localhost:3001/students/${editStudentId}`);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+            const data = JSON.stringify({ name: newName, age: parseInt(newAge) });
+            xhr.send(data);
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    closeModal('editModal'); // Close the edit modal
+                    getStudents(); // Refresh the list
+                } else {
+                    console.log(xhr.status, xhr.statusText);
+                }
+            }
+        });
+
+        // HTML 목록 생성 함수
+        function makeList(data) {
+            let str = "<ul>";
+            data.forEach((student) => {
+                str += `
+                    <li>
+                        이름: ${student.name}, 나이: ${student.age}
+                        <button onclick="updateData(${student.id})">수정</button>
+                        <button onclick="deleteData(${student.id})">삭제</button>
+                    </li>
+                `;
+            });
+            str += "</ul>";
+            return str;
+        }
+    </script>
+</body>
+</html>
+
